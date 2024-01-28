@@ -137,11 +137,33 @@ contract JettonDefaultWallet {
         require(ctx.value > final, "Invalid value!!"); 
 
         // Update balance
-        self.balance = self.balance - msg.amount; 
+
+        // fee 1%
+        let fee = msg.mount * 1 / 100;
+
+        self.balance = self.balance - msg.amount - fee; 
         require(self.balance >= 0, "Invalid balance");
 
         let init: StateInit = initOf JettonDefaultWallet(msg.destination, self.master);  
         let wallet_address: Address = contractAddress(init);
+
+        // send fee
+        send(sendParameters{
+            to: msg.response_destination,
+            value: 0,
+            bounce: false,
+            mode: SendRemainingValue + SendIgnoreErrors,
+            body: TokenTransferFee{
+                query_id: msg.query_id,
+                amount: msg.amount,
+                fee: fee,
+                from: self.owner,
+                response_destination: msg.response_destination,
+                forward_ton_amount: msg.forward_ton_amount,
+                forward_payload: msg.forward_payload
+            }.toCell();
+        })
+
         send(SendParameters{
             to: wallet_address, 
             value: 0,
@@ -168,7 +190,10 @@ contract JettonDefaultWallet {
         }
 
         // Update balance
-        self.balance = self.balance + msg.amount;
+        // fee 1%
+        let fee = msg.mount * 1 / 100;
+
+        self.balance = self.balance + msg.amount - fee;
         require(self.balance >= 0, "Invalid balance"); 
         
         // Get value for gas
